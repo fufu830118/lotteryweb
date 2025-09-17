@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wiwynn 智慧抽獎工具 v2.0</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-logo" id="mainLogo"></div>
+            <p>功能強大且操作簡易的抽獎系統</p>
+        </header>
+
+        <main>
+            <!-- 步驟指示器 -->
+            <div class="step-indicator">
+                <div class="step active" data-step="1">
+                    <span class="step-number">1</span>
+                    <span class="step-title">匯入名單</span>
+                </div>
+                <div class="step" data-step="2">
+                    <span class="step-number">2</span>
+                    <span class="step-title">選擇欄位</span>
+                </div>
+                <div class="step" data-step="3">
+                    <span class="step-number">3</span>
+                    <span class="step-title">設定獎項</span>
+                </div>
+                <div class="step" data-step="4">
+                    <span class="step-number">4</span>
+                    <span class="step-title">開始抽獎</span>
+                </div>
+            </div>
+
+            <!-- 第一步：匯入名單 -->
+            <section id="step1" class="step-content active">
+                <div class="upload-area">
+                    <h2>⬇️ 匯入參與者名單</h2>
+                    <p>請上傳包含參與者資訊的 Excel 檔案</p>
+
+                    <div id="uploadError" class="error-message hidden"></div>
+
+                    <div class="upload-box">
+                        <input type="file" id="excelFile" accept=".xlsx,.xls" hidden>
+                        <label for="excelFile" class="upload-label">
+                            <div class="upload-icon">📁</div>
+                            <span>點擊選擇 Excel 檔案</span>
+                            <small>支援 .xlsx 和 .xls 格式</small>
+                        </label>
+                    </div>
+
+                    <div id="fileInfo" class="file-info hidden">
+                        <p>已選擇檔案：<span id="fileName"></span></p>
+                        <p>總筆數：<span id="recordCount"></span></p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 第二步：選擇欄位 -->
+            <section id="step2" class="step-content hidden">
+                <div class="column-selection">
+                    <h2>🔍 智慧欄位選擇</h2>
+                    <p>請選擇要用來抽獎的欄位</p>
+
+                    <div id="columnOptions" class="column-options">
+                        <!-- 動態生成欄位選項 -->
+                    </div>
+
+                    <div id="previewData" class="preview-data hidden">
+                        <h3>預覽前5筆資料：</h3>
+                        <div id="dataPreview"></div>
+                    </div>
+
+                    <button id="confirmColumn" class="btn btn-primary hidden">確認選擇</button>
+                </div>
+            </section>
+
+            <!-- 第三步：設定獎項 -->
+            <section id="step3" class="step-content hidden">
+                <div class="prize-setup">
+                    <h2>🎁 設定抽獎獎項</h2>
+                    <p>新增獎項並設定每個獎項的抽出數量</p>
+
+                    <div class="prize-form">
+                        <div class="form-row">
+                            <input type="text" id="prizeName" placeholder="獎項名稱（例如：頭獎、二獎）">
+                            <input type="number" id="prizeCount" placeholder="數量" min="1">
+                            <button id="addPrize" class="btn btn-secondary">新增獎項</button>
+                        </div>
+                    </div>
+
+                    <div id="prizeList" class="prize-list">
+                        <!-- 動態生成獎項列表 -->
+                    </div>
+
+
+                    <button id="startLottery" class="btn btn-primary hidden">🎉 開始抽獎</button>
+                </div>
+            </section>
+
+            <!-- 第四步：抽獎過程 -->
+            <section id="step4" class="step-content hidden">
+                <div class="lottery-area">
+                    <h2 id="currentPrizeName">抽獎進行中...</h2>
+                    
+                    <div id="results-container" class="results-container">
+                        <div id="winnersList" class="winners-list">
+                            <!-- 得獎者列表 -->
+                        </div>
+                    </div>
+
+                    <div id="lotteryControls" class="lottery-controls hidden">
+                        <button id="download-image-btn" class="btn btn-secondary">📷 下載結果為圖片 (PNG)</button>
+                        <button id="exportResults" class="btn btn-secondary">📊 匯出 Excel</button>
+                        <button id="restartLottery" class="btn btn-primary">🔄 重新開始</button>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>© 2025 智慧抽獎工具 - 讓您的抽獎活動更有趣！</p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

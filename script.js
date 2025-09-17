@@ -72,7 +72,17 @@ class LotteryApp {
             this.nextStep();
 
         } catch (error) {
-            errorDiv.textContent = '❌ 檔案處理失敗：' + error.message;
+            let errorMessage = '❌ 檔案處理失敗：';
+            if (error.message.includes('標題列是空的')) {
+                errorMessage += '檔案標題列是空的或只包含空格，請確認第一行包含有效的欄位名稱。';
+            } else if (error.message.includes('沒有找到有效的資料列')) {
+                errorMessage += '檔案中沒有有效資料，請確認檔案包含至少一筆有效資料。';
+            } else if (error.message.includes('至少一行標題和一行資料')) {
+                errorMessage += '檔案格式不正確，請確認檔案包含標題列和資料列。';
+            } else {
+                errorMessage += error.message;
+            }
+            errorDiv.textContent = errorMessage;
             errorDiv.classList.remove('hidden');
         }
     }
@@ -93,23 +103,39 @@ class LotteryApp {
                         return;
                     }
 
-                    // 轉換為物件格式
-                    const headers = jsonData[0];
+                    // 轉換為物件格式，清理空白字符
+                    const headers = jsonData[0].map(header =>
+                        typeof header === 'string' ? header.trim() : header
+                    ).filter(header => header !== '');
+
+                    if (headers.length === 0) {
+                        reject(new Error('Excel 檔案標題列是空的或只包含空格'));
+                        return;
+                    }
+
                     const rows = jsonData.slice(1);
                     const result = rows.map(row => {
                         const obj = {};
                         headers.forEach((header, index) => {
-                            obj[header] = row[index] || '';
+                            const value = row[index];
+                            obj[header] = typeof value === 'string' ? value.trim() : (value || '');
                         });
                         return obj;
-                    }).filter(row => Object.values(row).some(value => value !== ''));
+                    }).filter(row => Object.values(row).some(value =>
+                        value !== '' && value !== null && value !== undefined
+                    ));
+
+                    if (result.length === 0) {
+                        reject(new Error('Excel 檔案中沒有找到有效的資料列（所有列都是空的或只包含空格）'));
+                        return;
+                    }
 
                     resolve(result);
                 } catch (error) {
                     reject(error);
                 }
             };
-            reader.onerror = () => reject(new Error('檔案讀取失敗'));
+            reader.onerror = () => reject(new Error('檔案讀取失敗，請確認檔案沒有損壞且為有效的 Excel 格式'));
             reader.readAsArrayBuffer(file);
         });
     }
@@ -168,16 +194,27 @@ class LotteryApp {
     }
 
     confirmColumnSelection() {
-        // 建立參與者列表
+        // 建立參與者列表，更嚴格的空值檢查
         this.participants = this.excelData
             .map(row => row[this.selectedColumn])
-            .filter(name => name && name.trim() !== '')
+            .filter(name => {
+                // 檢查空值、空字符串、純空格
+                if (name === null || name === undefined) return false;
+                const trimmed = name.toString().trim();
+                return trimmed !== '';
+            })
             .map(name => name.toString().trim());
 
         if (this.participants.length === 0) {
-            alert('選擇的欄位中沒有有效的資料！');
+            const errorDiv = document.getElementById('uploadError');
+            errorDiv.textContent = `❌ 選擇的欄位「${this.selectedColumn}」中沒有有效的資料！請選擇其他欄位或檢查 Excel 檔案。`;
+            errorDiv.classList.remove('hidden');
             return;
         }
+
+        // 清除錯誤訊息
+        const errorDiv = document.getElementById('uploadError');
+        errorDiv.classList.add('hidden');
 
         this.nextStep();
     }
@@ -191,26 +228,26 @@ class LotteryApp {
         const count = parseInt(countInput.value);
 
         if (!name) {
-            alert('請輸入獎項名稱！');
+            alert('❌ 請輸入獎項名稱！');
             nameInput.focus();
             return;
         }
 
         if (!count || count < 1) {
-            alert('請輸入有效的獎項數量！');
+            alert('❌ 請輸入有效的獎項數量！（必須大於 0）');
             countInput.focus();
             return;
         }
 
         if (count > this.participants.length) {
-            alert('獎項數量不能超過參與者總數！');
+            alert(`❌ 獎項數量（${count}個）不能超過參與者總數（${this.participants.length}人）！`);
             countInput.focus();
             return;
         }
 
         // 檢查是否已存在相同名稱的獎項
         if (this.prizes.some(prize => prize.name === name)) {
-            alert('獎項名稱已存在！');
+            alert(`❌ 獎項名稱「${name}」已存在！請使用不同的名稱。`);
             nameInput.focus();
             return;
         }
@@ -255,7 +292,7 @@ class LotteryApp {
             document.getElementById('startLottery').classList.remove('hidden');
         } else {
             document.getElementById('startLottery').classList.add('hidden');
-            alert('總獎項數量不能超過參與者總數！');
+            alert(`❌ 總獎項數量（${totalPrizes}個）不能超過參與者總數（${this.participants.length}人）！`);
         }
     }
 
@@ -369,12 +406,22 @@ class LotteryApp {
             return;
         }
 
+        // 詢問活動名稱
+        const activityName = prompt('請輸入活動名稱（將用於檔案名稱）:', localStorage.getItem('activityName') || 'Wiwynn抽獎活動');
+        if (!activityName) {
+            return; // 使用者取消
+        }
+
+        // 保存活動名稱
+        localStorage.setItem('activityName', activityName);
+
         // 1. 匯出 Excel
         try {
             const exportData = [];
             Object.entries(this.winners).forEach(([prizeName, winners]) => {
                 winners.forEach((winner, index) => {
                     exportData.push({
+                        '活動名稱': activityName,
                         '獎項': prizeName,
                         '序號': index + 1,
                         '得獎者': winner
@@ -385,7 +432,8 @@ class LotteryApp {
             const ws = XLSX.utils.json_to_sheet(exportData);
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, '抽獎結果');
-            const excelFileName = `抽獎結果_${new Date().toISOString().slice(0, 10)}.xlsx`;
+            const sanitizedActivityName = activityName.replace(/[\\/:*?"<>|]/g, '_');
+            const excelFileName = `${sanitizedActivityName}_抽獎結果_${new Date().toISOString().slice(0, 10)}.xlsx`;
             XLSX.writeFile(wb, excelFileName);
         } catch (error) {
             console.error('匯出 Excel 失敗:', error);
@@ -399,11 +447,19 @@ class LotteryApp {
             return;
         }
 
-        // 保存結果到 localStorage 供 results.html 讀取
+        // 詢問活動名稱
+        const activityName = prompt('請輸入活動名稱:', localStorage.getItem('activityName') || 'Wiwynn抽獎活動');
+        if (!activityName) {
+            return; // 使用者取消
+        }
+
+        // 保存活動名稱和結果到 localStorage 供 results.html 讀取
+        localStorage.setItem('activityName', activityName);
         localStorage.setItem('lotteryResults', JSON.stringify(this.winners));
 
-        // 直接開啟 results.html 頁面
-        window.open('results.html', '_blank');
+        // 直接開啟 results.html 頁面，附帶活動名稱參數
+        const encodedActivity = encodeURIComponent(activityName);
+        window.open(`results.html?activity=${encodedActivity}`, '_blank');
     }
 
     async waitForAnimationsToComplete() {
@@ -458,7 +514,7 @@ class LotteryApp {
     }
 
     restartApp() {
-        if (confirm('確定要重新開始嗎？這將清除所有資料！')) {
+        if (confirm('⚠️ 確定要重新開始嗎？\n\n這將清除所有資料，包括：\n• 已匯入的參與者名單\n• 設定的獎項\n• 抽獎結果\n\n此操作無法復原！')) {
             location.reload();
         }
     }

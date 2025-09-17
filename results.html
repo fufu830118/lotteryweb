@@ -223,7 +223,7 @@
         <div class="header">
             <div class="header-logo"></div>
             <h1 class="title">抽獎結果</h1>
-            <p class="subtitle">Wiwynn 智慧抽獎工具</p>
+            <p class="subtitle" id="activity-name" contenteditable="true" onclick="editActivityName()">Wiwynn 智慧抽獎工具</p>
             <p class="date" id="result-date"></p>
         </div>
 
@@ -250,6 +250,17 @@
         function loadResults() {
             const urlParams = new URLSearchParams(window.location.search);
             const resultsParam = urlParams.get('results');
+            const activityParam = urlParams.get('activity');
+
+            // 設置活動名稱
+            if (activityParam) {
+                document.getElementById('activity-name').textContent = decodeURIComponent(activityParam);
+            } else {
+                const savedActivity = localStorage.getItem('activityName');
+                if (savedActivity) {
+                    document.getElementById('activity-name').textContent = savedActivity;
+                }
+            }
 
             let results = {};
             if (resultsParam) {
@@ -271,6 +282,28 @@
             }
 
             displayResults(results);
+        }
+
+        function editActivityName() {
+            const activityElement = document.getElementById('activity-name');
+            activityElement.style.background = 'rgba(255, 255, 255, 0.3)';
+            activityElement.style.padding = '5px';
+            activityElement.style.borderRadius = '5px';
+            activityElement.style.border = '2px dashed rgba(255, 255, 255, 0.5)';
+
+            activityElement.addEventListener('blur', function() {
+                activityElement.style.background = 'transparent';
+                activityElement.style.padding = '0';
+                activityElement.style.border = 'none';
+                // 保存到 localStorage
+                localStorage.setItem('activityName', activityElement.textContent);
+            });
+
+            activityElement.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    activityElement.blur();
+                }
+            });
         }
 
         function displayResults(results) {
